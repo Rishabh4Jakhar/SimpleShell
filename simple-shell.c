@@ -293,36 +293,6 @@ bool validate_cmd(char *cmd) {
     }
     return false;
 }
-
-// launch function
-int launch(char **args) {
-    int status;
-    status = create_process_and_run(args);
-    if (status < 0) {
-        history.record[history.histCount].proc_pid = 0;
-    } else {
-        history.record[history.histCount].proc_pid = status;
-    }
-    return status;
-}
-
-// taking input from the terminal
-char *read_user_input() {
-    char *input = (char *)malloc(INPUT_SIZE);
-    if (input == NULL) {
-        perror("Error: Memory allocation failed\n");
-        free(input);
-        exit(EXIT_FAILURE);
-    }
-    size_t size = 0;
-    int read = getline(&input, &size, stdin);
-    if (read != -1) {
-        return input;
-    } else {
-        perror("Error: Some error occured while reading lines\n");
-        free(input);
-    }
-}
 // running shell cmds
 int create_process_and_run(char **args) {
     int status = fork();
@@ -365,6 +335,35 @@ int create_process_and_run(char **args) {
     return status;
 }
 
+// launch function
+int launch(char **args) {
+    int status;
+    status = create_process_and_run(args);
+    if (status < 0) {
+        history.record[history.histCount].proc_pid = 0;
+    } else {
+        history.record[history.histCount].proc_pid = status;
+    }
+    return status;
+}
+
+// taking input from the terminal
+char *read_user_input() {
+    char *input = (char *)malloc(INPUT_SIZE);
+    if (input == NULL) {
+        perror("Error: Memory allocation failed\n");
+        free(input);
+        exit(EXIT_FAILURE);
+    }
+    size_t size = 0;
+    int read = getline(&input, &size, stdin);
+    if (read != -1) {
+        return input;
+    } else {
+        perror("Error: Some error occured while reading lines\n");
+        free(input);
+    }
+}
 
 // main shell loop
 void shell_loop(){
