@@ -14,7 +14,7 @@
 int bgProcess = 0;
 // PIDs of background process running in the background. Can handle max of 5 processes only
 // initialising all values to 0
-pid_t running_bg_process[MAX_BGPROCESS] = {0};
+pid_t run_bgproccess[MAX_BGPROCESS] = {0};
 
 // struct for each command stored in history
 struct ComParam {
@@ -25,141 +25,84 @@ struct ComParam {
     pid_t proc_pid;
 };
 
-struct ComHist
-{
+struct ComHist {
     struct ComParam record[HISTORY_SIZE];
-    int historyCount;
+    int histCount;
 };
 
 struct ComHist history;
 
+// SIGINT (Ctrl + C) handler
+static void my_handler(int signum) {
+    printf("\nCtrl + C pressed\n");
+    disEnd();
+    exit(0);
+}
+
 // Function to display details of each command when the program is terminated using Ctrl + C
-void displayTerminate()
-{
-    printf("--------------------------------\n");
-    for (int i = 0; i < history.historyCount; i++)
-    {
+void disEnd() {
+    printf("-----------------------\n");
+    for (int i = 0; i < history.histCount; i++)  {
         struct ComParam record = history.record[i];
         // conversion of start and end time to string structures
-        struct tm *start_time_info = localtime(&record.start_time);
-        char start_time_buffer[80];
-        strftime(start_time_buffer, sizeof(start_time_buffer), "%Y-%m-%d %H:%M:%S", start_time_info);
+        struct tm *start_time_inf = localtime(&record.start_time);
+        char start_time_buff[80];
+        strftime(start_time_buff, sizeof(start_time_buff), "%Y-%m-%d %H:%M:%S", start_time_inf);
         struct tm *end_time_info = localtime(&record.end_time);
         char end_time_buffer[80];
         strftime(end_time_buffer, sizeof(end_time_buffer), "%Y-%m-%d %H:%M:%S", end_time_info);
         printf("%s\nProcess PID: %d\n", record.command, record.proc_pid);
-        printf("Start time: %s\nEnd Time: %s\nProcess Duration: %f\n", start_time_buffer, end_time_buffer, record.duration);
-        printf("--------------------------------\n");
+        printf("Start time: %s\nEnd Time: %s\nProcess Duration: %f\n", start_time_buff, end_time_buffer, record.duration);
+        printf("---------------------------\n");
     }
 }
 
-// SIGINT (Ctrl + C) handler
-static void my_handler(int signum)
-{
-    printf("\n");
-    displayTerminate();
-    exit(0);
-}
-
 // displaying command history
-void displayHistory()
-{
-    history.record[history.historyCount].proc_pid = getpid();
-    for (int i = 0; i < history.historyCount + 1; i++)
-    {
+void disHist() {
+    history.record[history.histCount].proc_pid = getpid();
+    for (int i = 0; i < history.histCount + 1; i++){
         printf("%d  %s\n", i + 1, history.record[i].command);
     }
 }
 
-// append background process as the latest value in the array
-int append(pid_t pid)
-{
-    int added = -1;
-    // if no background process running then add it as the first value
-    if (running_bg_process[0] == 0 && running_bg_process[1] == 0 && running_bg_process[2] == 0 && running_bg_process[3] == 0 && running_bg_process[4] == 0)
-    {
-        added = 0;
-        running_bg_process[0] = pid;
-        return added;
-    }
-    // adding the process only after the last non-zero PID that is a running background process
-    for (int i = MAX_BGPROCESS - 2; i >= 0; i--)
-    {
-        if (running_bg_process[i] != 0)
-        {
-            running_bg_process[i + 1] = pid;
-            added = i + 1;
-        }
-    }
-    return added;
-}
-
-int pop(pid_t pid)
-{
+int pop(pid_t pid) {
     // removing the PID of the completed background process and resetting it to 0
-    for (int i = 0; i < MAX_BGPROCESS; i++)
-    {
-        if (running_bg_process[i] == pid)
-        {
-            running_bg_process[i] = 0;
+    for (int i = 0; i < MAX_BGPROCESS; i++) {
+        if (run_bgproccess[i] == pid) {
+            run_bgproccess[i] = 0;
             return i;
         }
     }
     return -1;
 }
 
-// running shell commands
-int create_process_and_run(char **args)
-{
-    int status = fork();
-    if (status < 0)
-    {
-        perror("Fork Failed");
-    }
-    else if (status == 0)
-    {
-        int check = execvp(args[0], args);
-        if (check == -1)
+// append background process as the latest value in the array
+int append(pid_t pid) {
+    int added;
+    added = -1;
+    // if no background process running then add it as the first value
+    // Check if run_bgproccess is empty (filled of 0)
+    int count = 0;
+    for (int i = 0; i < MAX_BGPROCESS; i++) {
+        if (run_bgproccess[i] == 0)
         {
-            printf("%s: command not found\n", args[0]);
-            exit(1);
+            count++;
         }
     }
-    else
-    {
-        // Checking for background process
-        if (!(bgProcess))
+    if (count == MAX_BGPROCESS) {
+        run_bgproccess[0] = pid;
+        added = 0;
+        return added;
+    }
+    // adding the process only after the last non-zero PID that is a running background process
+    for (int i = MAX_BGPROCESS - 2; i >= 0; i--) {
+        if (run_bgproccess[i] != 0)
         {
-            int child_status;
-            // Wait for the child to complete
-            wait(&child_status);
-            if (WIFEXITED(child_status))
-            {
-                int exit_code = WEXITSTATUS(child_status);
-            }
-            else
-            {
-                printf("Child process did not exit normally.\n");
-            }
-        }
-        else
-        {
-            // parent doesn't wait for the background child processes to terminate
-            int order = append(status);
-            if (order != -1)
-            {
-                history.record[history.historyCount].proc_pid = status;
-                // start of background process
-                printf("[%d] %d\n", order + 1, status);
-            }
-            else
-            {
-                history.record[history.historyCount].proc_pid = 0;
-                printf("No more background processes can be added");
-            }
+            run_bgproccess[i + 1] = pid;
+            added = i + 1;
         }
     }
-    return status;
+    return added;
 }
 
 // launch function
@@ -169,11 +112,11 @@ int launch(char **args)
     status = create_process_and_run(args);
     if (status > 0)
     {
-        history.record[history.historyCount].proc_pid = status;
+        history.record[history.histCount].proc_pid = status;
     }
     else
     {
-        history.record[history.historyCount].proc_pid = 0;
+        history.record[history.histCount].proc_pid = 0;
     }
     return status;
 }
@@ -372,17 +315,17 @@ int launch_pipe(char *command)
     status = pipe_process(cmds, count);
     if (status > 0)
     {
-        history.record[history.historyCount].proc_pid = status;
+        history.record[history.histCount].proc_pid = status;
     }
     else
     {
-        history.record[history.historyCount].proc_pid = 0;
+        history.record[history.histCount].proc_pid = 0;
     }
     // setting the time after the pipe process terminates
-    history.record[history.historyCount].end_time = time(NULL);
-    history.record[history.historyCount].duration = difftime(
-        history.record[history.historyCount].end_time,
-        history.record[history.historyCount].start_time);
+    history.record[history.histCount].end_time = time(NULL);
+    history.record[history.histCount].duration = difftime(
+        history.record[history.histCount].end_time,
+        history.record[history.histCount].start_time);
     // freeing allocated memory space
     free(cmds);
     return status;
@@ -399,7 +342,7 @@ void handle_sigchld(int signum)
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
         // Finding the child process in history according to the PID of the terminated process
-        for (int i = 0; i < history.historyCount; i++)
+        for (int i = 0; i < history.histCount; i++)
         {
             if (history.record[i].proc_pid == pid)
             {
@@ -444,6 +387,60 @@ bool validate_command(char *command)
     }
     return false;
 }
+
+// running shell commands
+int create_process_and_run(char **args) {
+    int status = fork();
+    if (status < 0)
+    {
+        perror("Fork Failed");
+    }
+    else if (status == 0)
+    {
+        int check = execvp(args[0], args);
+        if (check == -1)
+        {
+            printf("%s: command not found\n", args[0]);
+            exit(1);
+        }
+    }
+    else
+    {
+        // Checking for background process
+        if (!(bgProcess))
+        {
+            int child_status;
+            // Wait for the child to complete
+            wait(&child_status);
+            if (WIFEXITED(child_status))
+            {
+                int exit_code = WEXITSTATUS(child_status);
+            }
+            else
+            {
+                printf("Child process did not exit normally.\n");
+            }
+        }
+        else
+        {
+            // parent doesn't wait for the background child processes to terminate
+            int order = append(status);
+            if (order != -1)
+            {
+                history.record[history.histCount].proc_pid = status;
+                // start of background process
+                printf("[%d] %d\n", order + 1, status);
+            }
+            else
+            {
+                history.record[history.histCount].proc_pid = 0;
+                printf("No more background processes can be added");
+            }
+        }
+    }
+    return status;
+}
+
 
 // main shell loop
 void shell_loop()
@@ -497,29 +494,29 @@ void shell_loop()
         if (isInvalidCommand)
         {
             status = 1;
-            strcpy(history.record[history.historyCount].command, tmp);
-            history.record[history.historyCount].start_time = time(NULL);
-            history.record[history.historyCount].end_time = time(NULL);
-            history.record[history.historyCount].duration = difftime(
-                history.record[history.historyCount].end_time,
-                history.record[history.historyCount].start_time);
-            history.historyCount++;
+            strcpy(history.record[history.histCount].command, tmp);
+            history.record[history.histCount].start_time = time(NULL);
+            history.record[history.histCount].end_time = time(NULL);
+            history.record[history.histCount].duration = difftime(
+                history.record[history.histCount].end_time,
+                history.record[history.histCount].start_time);
+            history.histCount++;
             printf("Invalid Command : includes quotes/backslash\n");
             continue;
         }
         // checking if the input is "history"
         if (strstr(command, "history"))
         {
-            if (history.historyCount > 0)
+            if (history.histCount > 0)
             {
-                strcpy(history.record[history.historyCount].command, tmp);
-                history.record[history.historyCount].start_time = time(NULL);
-                displayHistory();
-                history.record[history.historyCount].end_time = time(NULL);
-                history.record[history.historyCount].duration = difftime(
-                    history.record[history.historyCount].end_time,
-                    history.record[history.historyCount].start_time);
-                history.historyCount++;
+                strcpy(history.record[history.histCount].command, tmp);
+                history.record[history.histCount].start_time = time(NULL);
+                disHist();
+                history.record[history.histCount].end_time = time(NULL);
+                history.record[history.histCount].duration = difftime(
+                    history.record[history.histCount].end_time,
+                    history.record[history.histCount].start_time);
+                history.histCount++;
             }
             else
             {
@@ -533,22 +530,22 @@ void shell_loop()
             // checking for pipes in the process
             if (strchr(command, '|'))
             {
-                strcpy(history.record[history.historyCount].command, tmp);
-                history.record[history.historyCount].start_time = time(NULL);
+                strcpy(history.record[history.histCount].command, tmp);
+                history.record[history.histCount].start_time = time(NULL);
                 status = launch_pipe(command);
-                history.historyCount++;
+                history.histCount++;
             }
             else
             {
                 char **args = tokenize(command, " ");
-                strcpy(history.record[history.historyCount].command, tmp);
-                history.record[history.historyCount].start_time = time(NULL);
+                strcpy(history.record[history.histCount].command, tmp);
+                history.record[history.histCount].start_time = time(NULL);
                 status = launch(args);
-                history.record[history.historyCount].end_time = time(NULL);
-                history.record[history.historyCount].duration = difftime(
-                    history.record[history.historyCount].end_time,
-                    history.record[history.historyCount].start_time);
-                history.historyCount++;
+                history.record[history.histCount].end_time = time(NULL);
+                history.record[history.histCount].duration = difftime(
+                    history.record[history.histCount].end_time,
+                    history.record[history.histCount].start_time);
+                history.histCount++;
             }
         }
         // resetting the background process variable
@@ -557,10 +554,9 @@ void shell_loop()
 }
 
 // Main function
-int main()
-{
+int main() {
     // initializing count for elements in history
-    history.historyCount = 0;
+    history.histCount = 0;
     shell_loop();
     return 0;
 }
