@@ -32,12 +32,6 @@ struct ComHist {
 
 struct ComHist history;
 
-// SIGINT (Ctrl + C) handler
-static void my_handler(int signum) {
-    printf("\nCtrl + C pressed\n");
-    disEnd();
-    exit(0);
-}
 
 // Function to display details of each cmd when the program is terminated using Ctrl + C
 void disEnd() {
@@ -55,6 +49,13 @@ void disEnd() {
         printf("Start time: %s\nEnd Time: %s\nProcess Duration: %f\n", start_time_buff, end_time_buffer, record.duration);
         printf("---------------------------\n");
     }
+}
+
+// SIGINT (Ctrl + C) handler
+static void my_handler(int signum) {
+    printf("\nCtrl + C pressed\n");
+    disEnd();
+    exit(0);
 }
 
 // displaying cmd history
