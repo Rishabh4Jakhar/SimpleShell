@@ -1,8 +1,6 @@
-# Source: https://linuxhint.com/30_bash_script_examples/#t23
-
 #!/bin/bash
 
-echo "This code will read the file"
+echo "This code will read the file and is just made for to show bonus (&)"
 echo
 echo Current working directory: $(pwd)
 echo
